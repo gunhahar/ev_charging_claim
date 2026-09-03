@@ -248,7 +248,7 @@
           // ==========================================
           // เริ่มต้นส่งข้อมูลเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwCDW1TlGjXy04CBJZ5YXf1NvtTfZUowUqRK-DjjZBK_Ff90TQJsE_eSpmMNibfCBXc/exec";
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzVXu760G9py13X3UZGu76HEBCacjOLMX7K3hS5wCSib4e8cSxK_fmMj4dMZTMFwGLm1w/exec";
           
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
@@ -265,9 +265,9 @@
 
               await fetch(GOOGLE_WEB_APP_URL, {
                 method: "POST",
-                mode: "no-cors",
+                // mode: "no-cors",  <--- ให้ลบหรือ Comment บรรทัดนี้ทิ้งไปเลย
                 headers: {
-                  "Content-Type": "text/plain",
+                  "Content-Type": "text/plain;charset=utf-8",
                 },
                 body: JSON.stringify(payload)
               });
