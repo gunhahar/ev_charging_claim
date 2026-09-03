@@ -248,14 +248,16 @@
           // ==========================================
           // เริ่มต้นส่งข้อมูลเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwW-ME_y8GF7NI5o4iH83Ernfg2ctJ4LShp-DKX-9hU3QJg2ZG2d_stdqum8CddqmO1ZQ/exec";
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxm4yN9Bw5Zv_L5AcfUCPrUigKvndF_vnRaauadnAg2lW_FjcZ8Rsecdgar-olkb2CSXg/exec";
           
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
               const payload = {
                 empId: newLog.empId,
                 licensePlate: newLog.licensePlate,
+                currentBattery: newLog.currentBattery, // เพิ่มข้อมูลแบตเตอรี่ก่อนชาร์จ
                 energyNeeded: newLog.energyNeeded,
+                elecRate: newLog.elecRate,             // เพิ่มข้อมูลอัตราค่าไฟต่อหน่วย
                 totalCost: newLog.totalCost,
                 fileName: `Charge_${newLog.empId}_${newLog.id}.jpg`,
                 imageBase64: photoPreview
