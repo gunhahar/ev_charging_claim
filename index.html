@@ -199,21 +199,56 @@
         e.preventDefault();
         if (!billPhotoPreview || !billMonth || !billTotalCost || !billTotalUnits) return;
 
-        const rate = parseFloat(billTotalCost) / parseFloat(billTotalUnits);
-        const newBill = {
-          id: Date.now().toString(),
-          empId: user.empId,
-          month: billMonth,
-          totalCost: parseFloat(billTotalCost),
-          totalUnits: parseFloat(billTotalUnits),
-          rate: rate,
-          photoPreview: billPhotoPreview
-        };
+        setIsSubmitting(true);
+        setTimeout(async () => {
+          const rate = parseFloat(billTotalCost) / parseFloat(billTotalUnits);
+          const newBill = {
+            id: Date.now().toString(),
+            empId: user.empId,
+            month: billMonth,
+            totalCost: parseFloat(billTotalCost),
+            totalUnits: parseFloat(billTotalUnits),
+            rate: rate,
+            photoPreview: billPhotoPreview
+          };
 
-        setBills([...bills.filter(b => !(b.empId === user.empId && b.month === billMonth)), newBill]);
-        setBillMonth(''); setBillTotalCost(''); setBillTotalUnits(''); setBillPhotoPreview('');
-        setView('DASHBOARD');
-        setDialog({ message: 'บันทึกบิลค่าไฟสำเร็จ!', isAlert: true });
+          // ==========================================
+          // ส่งข้อมูลบิลค่าไฟเข้า Google Sheets API
+          // ==========================================
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby8z5XtNcRjv-AJmz4aHPujiCTJfIh_zkdMFLy9y4Yfh5F-S5ba0mEZxp-MhYDMjbCXQg/exec";
+
+          if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
+            try {
+              const payload = {
+                action: 'SAVE_BILL',
+                empId: newBill.empId,
+                month: newBill.month,
+                totalCost: newBill.totalCost,
+                totalUnits: newBill.totalUnits,
+                rate: newBill.rate,
+                fileName: `Bill_${newBill.empId}_${newBill.month}.jpg`,
+                imageBase64: billPhotoPreview
+              };
+
+              await fetch(GOOGLE_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(payload)
+              });
+              console.log("ส่งข้อมูลบิลค่าไฟเข้า Google Sheets สำเร็จ");
+            } catch (error) {
+              console.error("เกิดข้อผิดพลาดในการส่งข้อมูลบิล:", error);
+            }
+          }
+          // ==========================================
+
+          setBills([...bills.filter(b => !(b.empId === user.empId && b.month === billMonth)), newBill]);
+          setBillMonth(''); setBillTotalCost(''); setBillTotalUnits(''); setBillPhotoPreview('');
+          setIsSubmitting(false);
+          setView('DASHBOARD');
+          setDialog({ message: 'บันทึกบิลค่าไฟสำเร็จ!', isAlert: true });
+        }, 800);
       };
 
       const handlePhotoChange = (e) => {
@@ -248,7 +283,7 @@
           // ==========================================
           // เริ่มต้นส่งข้อมูลเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwdbR_CCSBMGQ6ALEuqTwgpGkp1mImYtdbMKK0LBP78QmRjEx_fgoo3A3Dm5e8hSPCn/exec";
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbykFdTo8nrEyJGTqQHN3Ffc3hJpwyfcunizp2zq_dtunGWNID_fFUpZ7fo1r3S_pKX0Jg/exec";
 
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
@@ -502,9 +537,9 @@
                   )}
                 </div>
 
-                <button type="submit" disabled={!billPhotoPreview}
-                  className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold mt-2 disabled:bg-slate-300">
-                  บันทึกบิลค่าไฟ
+                <button type="submit" disabled={!billPhotoPreview || isSubmitting}
+                  className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold mt-2 disabled:bg-slate-300 flex items-center justify-center gap-2">
+                  {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกบิลค่าไฟ'}
                 </button>
               </form>
             </main>
