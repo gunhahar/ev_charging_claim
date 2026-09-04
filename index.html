@@ -250,11 +250,11 @@
           // ==========================================
           const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyLySUlgYso2a1VilHPHYDD2eILX3TERt9iDgOIUAi92f2VlYdA02ostolzdiw2XxAlNQ/exec";
           
-          if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
+          if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script google")) {
             try {
               const payload = {
-                empId: newLog.empId,
-                licensePlate: newLog.licensePlate,
+                empId: newLog.empId, // เพิ่มข้อมูลรหัสผนักงาน
+                licensePlate: newLog.licensePlate, // เพิ่มข้อมูลทะเบียนรถ
                 currentBattery: newLog.currentBattery, // เพิ่มข้อมูลแบตเตอรี่ก่อนชาร์จ
                 energyNeeded: newLog.energyNeeded,
                 elecRate: newLog.elecRate,             // เพิ่มข้อมูลอัตราค่าไฟต่อหน่วย
