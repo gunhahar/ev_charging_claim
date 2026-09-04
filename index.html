@@ -213,14 +213,13 @@
           };
 
           // ==========================================
-          // ส่งข้อมูลบิลค่าไฟเข้า Google Sheets API
+          // ส่งข้อมูลบิลค่าไฟเข้า Google Sheets (สคริปต์บิลโดยเฉพาะ)
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/library/d/1QtlANd6pIVPFfqPA_DBmcg4qSOyPSrZMX8rM-1eFUivWsLzSBp71l-IJ/45"; //บันทึก ver.45
+          const BILL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwFgXfGaJ3GG6e_j3HC8vpRoglrvVZsr8xlh7lz2-TLk-4wQlAqSE_BP9atQFXnCsoAA/exec"; //Ver. 47 (สำหรับบิล)
 
-          if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
+          if (BILL_WEB_APP_URL && BILL_WEB_APP_URL.includes("script.google.com")) {
             try {
               const payload = {
-                action: 'SAVE_BILL',
                 empId: newBill.empId,
                 month: newBill.month,
                 totalCost: newBill.totalCost,
@@ -230,7 +229,7 @@
                 imageBase64: billPhotoPreview
               };
 
-              await fetch(GOOGLE_WEB_APP_URL, {
+              await fetch(BILL_WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
                 headers: { "Content-Type": "text/plain" },
@@ -283,7 +282,7 @@
           // ==========================================
           // เริ่มต้นส่งข้อมูลเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbykFdTo8nrEyJGTqQHN3Ffc3hJpwyfcunizp2zq_dtunGWNID_fFUpZ7fo1r3S_pKX0Jg/exec";
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwdbR_CCSBMGQ6ALEuqTwgpGkp1mImYtdbMKK0LBP78QmRjEx_fgoo3A3Dm5e8hSPCn/exec"; //Ver. 45 (สำหรับการชาร์จ)
 
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
