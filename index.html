@@ -99,6 +99,7 @@
 
       const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
       const [currentBattery, setCurrentBattery] = useState('');
+      const [targetBattery, setTargetBattery] = useState("");
       const [elecRate, setElecRate] = useState(0);
       const [photo, setPhoto] = useState(null);
       const [photoPreview, setPhotoPreview] = useState('');
@@ -118,9 +119,11 @@
         if (selectedCar && currentBattery !== '') {
           const batt = parseFloat(currentBattery);
           const cap = parseFloat(selectedCar.capacity);
-
-          if (!isNaN(batt) && !isNaN(cap) && batt >= 0 && batt <= 100) {
-            const energy = ((100 - batt) / 100) * cap;
+          // กำหนดค่า default เป็น 100 หากไม่มีการระบุเป้าหมาย
+          const target = targetBattery ? parseFloat(targetBattery) : 100;
+          // แก้ไขเงื่อนไขและการคำนวณให้ใช้ตัวแปร target แทน 100
+          if (!isNaN(batt) && !isNaN(cap) && batt >= 0 && batt <= target) {
+            const energy = ((target - batt) / 100) * cap;
             setEnergyNeeded(energy);
 
             const chargeMonth = date.substring(0, 7);
@@ -146,8 +149,7 @@
         } else {
           setEnergyNeeded(0); setTotalCost(0); setElecRate(0);
         }
-      }, [currentBattery, selectedCar, date, bills, user]);
-
+      }, [currentBattery, targetBattery, selectedCar, date, bills, user]); // เพิ่ม targetBattery ใน dependency
       const handleLogin = (e) => {
         e.preventDefault();
         const foundUser = employees.find(emp => emp.empId === loginId.trim().toUpperCase());
@@ -215,7 +217,7 @@
           // ==========================================
           // ส่งข้อมูลบิลค่าไฟเข้า Google Sheets (สคริปต์บิลโดยเฉพาะ)
           // ==========================================
-          const BILL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwFgXfGaJ3GG6e_j3HC8vpRoglrvVZsr8xlh7lz2-TLk-4wQlAqSE_BP9atQFXnCsoAA/exec"; //Ver. 47 (สำหรับบิล)
+          const BILL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzLf3sCX5bN2a4kt8RiGCMiGKabCnsJ4Mn7UOKgcNPucI5L8oQNmAfe3CNHAHbXHBXctQ/exec"; //Ver. 48 (สำหรับบิล)
 
           if (BILL_WEB_APP_URL && BILL_WEB_APP_URL.includes("script.google.com")) {
             try {
@@ -261,11 +263,14 @@
       };
 
       const handleSubmitLog = (e) => {
-        e.preventDefault();
-        if (!currentBattery || !photoPreview || !selectedCar) return;
-
+      e.preventDefault();
+      if (!currentBattery || !photoPreview || !selectedCar) return;
         setIsSubmitting(true);
         setTimeout(async () => {
+          // 1. จัดการค่า targetBattery
+         const finalTargetBattery = targetBattery ? Number(targetBattery) : 100;
+
+          // 2. เก็บลง State (เพื่อแสดงผลและ Export Excel)
           const newLog = {
             id: Date.now().toString(),
             empId: user.empId,
@@ -273,6 +278,7 @@
             licensePlate: selectedCar.licensePlate,
             date,
             currentBattery: parseFloat(currentBattery),
+            targetBattery: finalTargetBattery, // เพิ่มค่าที่นี่
             energyNeeded: energyNeeded.toFixed(2),
             totalCost: totalCost.toFixed(2),
             elecRate: parseFloat(elecRate),
@@ -280,18 +286,19 @@
           };
 
           // ==========================================
-          // เริ่มต้นส่งข้อมูลเข้า Google Sheets API
+          // เริ่มต้นส่งข้อมูลการชาร์จเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwdbR_CCSBMGQ6ALEuqTwgpGkp1mImYtdbMKK0LBP78QmRjEx_fgoo3A3Dm5e8hSPCn/exec"; //Ver. 45 (สำหรับการชาร์จ)
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzLf3sCX5bN2a4kt8RiGCMiGKabCnsJ4Mn7UOKgcNPucI5L8oQNmAfe3CNHAHbXHBXctQ/exec";
 
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
               const payload = {
                 empId: newLog.empId,
                 licensePlate: newLog.licensePlate,
-                currentBattery: newLog.currentBattery, // เพิ่มข้อมูลแบตเตอรี่ก่อนชาร์จ
+                currentBattery: newLog.currentBattery,
+                targetBattery: newLog.targetBattery, // 3. เพิ่มค่าลง Payload เพื่อส่งให้ Apps Script
                 energyNeeded: newLog.energyNeeded,
-                elecRate: newLog.elecRate,             // เพิ่มข้อมูลอัตราค่าไฟต่อหน่วย
+                elecRate: newLog.elecRate,
                 totalCost: newLog.totalCost,
                 fileName: `Charge_${newLog.empId}_${newLog.id}.jpg`,
                 imageBase64: photoPreview
@@ -315,12 +322,12 @@
           setLogs([...logs, newLog]);
           setIsSubmitting(false);
 
-          setCurrentBattery(''); setPhoto(null); setPhotoPreview('');
+          setCurrentBattery(''); setTargetBattery(''); setPhoto(null); setPhotoPreview('');
           setDate(new Date().toISOString().split('T')[0]);
           setView('DASHBOARD');
           setDialog({ message: 'บันทึกข้อมูลสำเร็จ!', isAlert: true });
         }, 800);
-      };
+};
 
       const handleExportXLSX = async (plate, month, monthLogs) => {
         setIsExporting(month);
@@ -342,6 +349,7 @@
             "รหัสพนักงาน": log.empId,
             "ทะเบียนรถ": log.licensePlate,
             "แบตเตอรี่ก่อนชาร์จ (%)": log.currentBattery,
+            "เป้าหมายการชาร์จ (%)": log.targetBattery,
             "ปริมาณไฟที่ชาร์จเพิ่ม (kWh)": Number(log.energyNeeded),
             "ค่าไฟต่อหน่วย (บาท)": Number(log.elecRate),
             "ยอดเงินเบิก (บาท)": Number(log.totalCost)
@@ -594,6 +602,18 @@
                       <Battery className="w-6 h-6 text-slate-400 absolute right-4 top-3.5" />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">เป้าหมายการชาร์จ (%)</label>
+                    <input 
+                      type="number" 
+                      value={targetBattery} 
+                      onChange={(e) => setTargetBattery(e.target.value)} 
+                      placeholder="100 (ค่าเริ่มต้น)"
+                      min="1" 
+                      max="100"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" />
+                </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">รูปถ่ายหน้าปัดรถ <span className="text-red-500">*</span></label>
