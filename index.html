@@ -72,20 +72,16 @@
 
     // --- แอปพลิเคชันหลัก ---
     function App() {
-      const MOCK_EMPLOYEES = [
-        { empId: '1105291', firstName: 'ทดสอบ', lastName: 'FCP' },
-        { empId: '1106357', firstName: 'ธริยา', lastName: 'FCP' }
-      ];
-
-      const [employees] = useState(MOCK_EMPLOYEES);
-      const [cars, setCars] = useState([
-        { id: 'c1', empId: '1105291', licensePlate: '2ขด 1234', brand: 'Toyota', year: '2023', capacity: 40 }
-      ]);
+      // เช็ครถกับพนง.
+      const [cars, setCars] = useState([]); // เริ่มต้นให้รถเป็น array ว่าง
       const [logs, setLogs] = useState([]);
       const [bills, setBills] = useState([]);
 
       const [user, setUser] = useState(null);
       const [view, setView] = useState('LOGIN'); 
+      const [isLoggingIn, setIsLoggingIn] = useState(false); // เพิ่ม State เช็คตอนกด Login
+      // ==================================
+      
       const [selectedCar, setSelectedCar] = useState(null);
       const [dialog, setDialog] = useState(null);
 
@@ -150,15 +146,32 @@
           setEnergyNeeded(0); setTotalCost(0); setElecRate(0);
         }
       }, [currentBattery, targetBattery, selectedCar, date, bills, user]); // เพิ่ม targetBattery ใน dependency
-      const handleLogin = (e) => {
+      
+      const USER_API_URL = "https://script.google.com/macros/s/AKfycbw84FAbnpctfZWrJGPAkE7yp8j6oE9eyE13vyGfXa-MVVppCNz0SGmYEENe3gJETXtkdg/exec"; // car ver.1
+
+      const handleLogin = async (e) => {
         e.preventDefault();
-        const foundUser = employees.find(emp => emp.empId === loginId.trim().toUpperCase());
-        if (foundUser) {
-          setUser(foundUser);
-          setLoginError('');
-          setView('DASHBOARD');
-        } else {
-          setLoginError('ไม่พบรหัสพนักงานนี้ในระบบ');
+        setIsLoggingIn(true);
+        setLoginError('');
+
+        try {
+          // ยิงไปตรวจสอบและขอข้อมูล User + รถ จาก Google Sheets
+          const response = await fetch(`${USER_API_URL}?action=login&empId=${loginId.trim().toUpperCase()}`);
+          const data = await response.json();
+
+          if (data.success) {
+            setUser(data.user); // เซ็ตชื่อนามสกุลที่ได้จากชีต
+            setCars(data.cars || []); // เซ็ตรถของพนักงานคนนั้น
+            setLoginError('');
+            setView('DASHBOARD');
+          } else {
+            setLoginError('ไม่พบรหัสพนักงานนี้ในระบบ');
+          }
+        } catch (error) {
+          console.error("Login Error:", error);
+          setLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่');
+        } finally {
+          setIsLoggingIn(false);
         }
       };
 
@@ -168,6 +181,8 @@
 
       const handleAddCar = (e) => {
         e.preventDefault();
+        setIsSubmitting(true); // ใช้ state เดิมเพื่อทำปุ่ม Loading (ถ้ามี) หรือใช้ setTimeout ก่อน
+  
         const newCar = {
           id: Date.now().toString(),
           empId: user.empId,
@@ -176,9 +191,29 @@
           year: carYear,
           capacity: parseFloat(carCapacity)
         };
-        setCars([...cars, newCar]);
-        setCarPlate(''); setCarBrand(''); setCarYear(''); setCarCapacity('');
-        setView('DASHBOARD');
+
+        setTimeout(async () => {
+          try {
+            const payload = {
+              action: "addCar",
+              ...newCar
+            };
+            // ยิงข้อมูลเข้า Google Sheets แบบเบื้องหลัง
+            await fetch(USER_API_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify(payload)
+            });
+            console.log("บันทึกรถเข้า Sheets สำเร็จ");
+          } catch(error) {
+            console.error("Error adding car:", error);
+          }
+          setCars([...cars, newCar]);
+          setCarPlate(''); setCarBrand(''); setCarYear(''); setCarCapacity('');
+          setIsSubmitting(false); // ถ้ายกเลิก loading state
+          setView('DASHBOARD');
+        }, 500);
       };
 
       const handleDeleteCar = (carId) => {
@@ -439,8 +474,9 @@
                   />
                 </div>
                 {loginError && <p className="text-red-500 text-sm text-left">{loginError}</p>}
-                <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-600/30 transition-colors">
-                  เข้าสู่ระบบ
+                <button type="submit" disabled={isLoggingIn}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-600/30 transition-colors disabled:bg-emerald-400" >
+                  {isLoggingIn ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}
                 </button>
               </form>
 
