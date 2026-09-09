@@ -323,11 +323,12 @@
           // ==========================================
           // เริ่มต้นส่งข้อมูลการชาร์จเข้า Google Sheets API
           // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzbzuswhP8w07Nb77xvsbyJP5JCwzRnNCoWLZhufFyyYJiw0Bh4zmhInIKYdaxgz_GW/exec"; //charge Ver. 3 (สำหรับบันทึกการชาร์จ)
+          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwLaNyfymPYUrH7KtRuYUzRwqZeOUMymPNe66Ao4yTs_g5zcUBtyQudAcoG_LI5EfOt/exec"; //charge Ver. 7 (สำหรับบันทึกการชาร์จ)
 
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
               const payload = {
+                date: newLog.date,
                 empId: newLog.empId,
                 licensePlate: newLog.licensePlate,
                 currentBattery: newLog.currentBattery,
