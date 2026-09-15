@@ -29,7 +29,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // --- ส่วนประกอบไอคอน (แทนที่การ import จาก lucide-react) ---
+    // --- ส่วนประกอบไอคอน ---
     const Camera = ({ className = "w-5 h-5", ...props }) => (
       <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
     );
@@ -73,14 +73,14 @@
     // --- แอปพลิเคชันหลัก ---
     function App() {
       // เช็ครถกับพนง.
-      const [cars, setCars] = useState([]); // เริ่มต้นให้รถเป็น array ว่าง
+      const [cars, setCars] = useState([]);
       const [logs, setLogs] = useState([]);
       const [bills, setBills] = useState([]);
 
       const [user, setUser] = useState(null);
       const [view, setView] = useState('LOGIN'); 
-      const [isLoggingIn, setIsLoggingIn] = useState(false); // เพิ่ม State เช็คตอนกด Login
-      // ==================================
+      const [isLoggingIn, setIsLoggingIn] = useState(false);
+      const [isLoadingLogs, setIsLoadingLogs] = useState(false); // สถานะตอนกำลังโหลดข้อมูลประวัติ
       
       const [selectedCar, setSelectedCar] = useState(null);
       const [dialog, setDialog] = useState(null);
@@ -111,13 +111,39 @@
       const [billPhotoPreview, setBillPhotoPreview] = useState('');
       const billFileInputRef = useRef(null);
 
+      const USER_API_URL = "https://script.google.com/macros/s/AKfycbw84FAbnpctfZWrJGPAkE7yp8j6oE9eyE13vyGfXa-MVVppCNz0SGmYEENe3gJETXtkdg/exec"; // car ver.1
+      const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFgJjNTZobBYFl-C_PnhyhAeeaWgJT9xHzd_UczyVlGzfr5D09q-FbGMqj-bT7wNS-/exec"; // charge Ver. 8
+
+      // ฟังก์ชันสำหรับดึงประวัติการชาร์จจาก Apps Script
+      const fetchLogs = async (empId) => {
+        setIsLoadingLogs(true);
+        try {
+          // ยิง GET request ไปที่ Apps Script (doGet) พร้อม parameter
+          const response = await fetch(`${GOOGLE_WEB_APP_URL}?action=getLogs&empId=${empId}`, {
+            method: 'GET',
+            redirect: 'follow' // จำเป็นสำหรับ Apps Script เพราะมีการ Redirect ไปที่ googleusercontent
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          if (data.success && Array.isArray(data.logs)) {
+            setLogs(data.logs);
+          }
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาดในการดึงข้อมูลประวัติ (กรุณาเช็คว่าตั้งค่า Apps Script เป็น Anyone หรือไม่):", error);
+        } finally {
+          setIsLoadingLogs(false);
+        }
+      };
+
       useEffect(() => {
         if (selectedCar && currentBattery !== '') {
           const batt = parseFloat(currentBattery);
           const cap = parseFloat(selectedCar.capacity);
-          // กำหนดค่า default เป็น 100 หากไม่มีการระบุเป้าหมาย
           const target = targetBattery ? parseFloat(targetBattery) : 100;
-          // แก้ไขเงื่อนไขและการคำนวณให้ใช้ตัวแปร target แทน 100
           if (!isNaN(batt) && !isNaN(cap) && batt >= 0 && batt <= target) {
             const energy = ((target - batt) / 100) * cap;
             setEnergyNeeded(energy);
@@ -145,9 +171,7 @@
         } else {
           setEnergyNeeded(0); setTotalCost(0); setElecRate(0);
         }
-      }, [currentBattery, targetBattery, selectedCar, date, bills, user]); // เพิ่ม targetBattery ใน dependency
-      
-      const USER_API_URL = "https://script.google.com/macros/s/AKfycbw84FAbnpctfZWrJGPAkE7yp8j6oE9eyE13vyGfXa-MVVppCNz0SGmYEENe3gJETXtkdg/exec"; // car ver.1
+      }, [currentBattery, targetBattery, selectedCar, date, bills, user]);
 
       const handleLogin = async (e) => {
         e.preventDefault();
@@ -155,15 +179,17 @@
         setLoginError('');
 
         try {
-          // ยิงไปตรวจสอบและขอข้อมูล User + รถ จาก Google Sheets
           const response = await fetch(`${USER_API_URL}?action=login&empId=${loginId.trim().toUpperCase()}`);
           const data = await response.json();
 
           if (data.success) {
-            setUser(data.user); // เซ็ตชื่อนามสกุลที่ได้จากชีต
-            setCars(data.cars || []); // เซ็ตรถของพนักงานคนนั้น
+            setUser(data.user);
+            setCars(data.cars || []);
             setLoginError('');
             setView('DASHBOARD');
+            
+            // เมื่อล็อกอินสำเร็จ ให้ดึงข้อมูลประวัติการชาร์จทันที
+            fetchLogs(data.user.empId);
           } else {
             setLoginError('ไม่พบรหัสพนักงานนี้ในระบบ');
           }
@@ -176,12 +202,12 @@
       };
 
       const handleLogout = () => {
-        setUser(null); setLoginId(''); setView('LOGIN');
+        setUser(null); setLoginId(''); setView('LOGIN'); setLogs([]);
       };
 
       const handleAddCar = (e) => {
         e.preventDefault();
-        setIsSubmitting(true); // ใช้ state เดิมเพื่อทำปุ่ม Loading (ถ้ามี) หรือใช้ setTimeout ก่อน
+        setIsSubmitting(true); 
   
         const newCar = {
           id: Date.now().toString(),
@@ -198,7 +224,6 @@
               action: "addCar",
               ...newCar
             };
-            // ยิงข้อมูลเข้า Google Sheets แบบเบื้องหลัง
             await fetch(USER_API_URL, {
               method: "POST",
               mode: "no-cors",
@@ -211,7 +236,7 @@
           }
           setCars([...cars, newCar]);
           setCarPlate(''); setCarBrand(''); setCarYear(''); setCarCapacity('');
-          setIsSubmitting(false); // ถ้ายกเลิก loading state
+          setIsSubmitting(false); 
           setView('DASHBOARD');
         }, 500);
       };
@@ -249,10 +274,7 @@
             photoPreview: billPhotoPreview
           };
 
-          // ==========================================
-          // ส่งข้อมูลบิลค่าไฟเข้า Google Sheets (สคริปต์บิลโดยเฉพาะ)
-          // ==========================================
-          const BILL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwtDndG_64AgZ7EnBEdiNWWVbSv5lEZ9UOR75NWHI3flReduGV-Xmt_S8KfqMvoLsha/exec"; //bill Ver. 1 (สำหรับบิล)
+          const BILL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwtDndG_64AgZ7EnBEdiNWWVbSv5lEZ9UOR75NWHI3flReduGV-Xmt_S8KfqMvoLsha/exec"; //bill Ver. 1
 
           if (BILL_WEB_APP_URL && BILL_WEB_APP_URL.includes("script.google.com")) {
             try {
@@ -277,7 +299,6 @@
               console.error("เกิดข้อผิดพลาดในการส่งข้อมูลบิล:", error);
             }
           }
-          // ==========================================
 
           setBills([...bills.filter(b => !(b.empId === user.empId && b.month === billMonth)), newBill]);
           setBillMonth(''); setBillTotalCost(''); setBillTotalUnits(''); setBillPhotoPreview('');
@@ -302,10 +323,8 @@
       if (!currentBattery || !photoPreview || !selectedCar) return;
         setIsSubmitting(true);
         setTimeout(async () => {
-          // 1. จัดการค่า targetBattery
-         const finalTargetBattery = targetBattery ? Number(targetBattery) : 100;
+          const finalTargetBattery = targetBattery ? Number(targetBattery) : 100;
 
-          // 2. เก็บลง State (เพื่อแสดงผลและ Export Excel)
           const newLog = {
             id: Date.now().toString(),
             empId: user.empId,
@@ -313,26 +332,21 @@
             licensePlate: selectedCar.licensePlate,
             date,
             currentBattery: parseFloat(currentBattery),
-            targetBattery: finalTargetBattery, // เพิ่มค่าที่นี่
+            targetBattery: finalTargetBattery, 
             energyNeeded: energyNeeded.toFixed(2),
             totalCost: totalCost.toFixed(2),
             elecRate: parseFloat(elecRate),
             photoPreview
           };
 
-          // ==========================================
-          // เริ่มต้นส่งข้อมูลการชาร์จเข้า Google Sheets API
-          // ==========================================
-          const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwLaNyfymPYUrH7KtRuYUzRwqZeOUMymPNe66Ao4yTs_g5zcUBtyQudAcoG_LI5EfOt/exec"; //charge Ver. 7 (สำหรับบันทึกการชาร์จ)
-
           if (GOOGLE_WEB_APP_URL && GOOGLE_WEB_APP_URL.includes("script.google.com")) {
             try {
               const payload = {
-                date: newLog.date,
+                date: newLog.date, // แก้ไข D ใหญ่เป็น d เล็กแล้ว
                 empId: newLog.empId,
                 licensePlate: newLog.licensePlate,
                 currentBattery: newLog.currentBattery,
-                targetBattery: newLog.targetBattery, // 3. เพิ่มค่าลง Payload เพื่อส่งให้ Apps Script
+                targetBattery: newLog.targetBattery, 
                 energyNeeded: newLog.energyNeeded,
                 elecRate: newLog.elecRate,
                 totalCost: newLog.totalCost,
@@ -353,7 +367,6 @@
               console.error("เกิดข้อผิดพลาดในการส่งข้อมูลเข้า Google Sheets:", error);
             }
           }
-          // ==========================================
 
           setLogs([...logs, newLog]);
           setIsSubmitting(false);
@@ -363,7 +376,7 @@
           setView('DASHBOARD');
           setDialog({ message: 'บันทึกข้อมูลสำเร็จ!', isAlert: true });
         }, 800);
-};
+      };
 
       const handleExportXLSX = async (plate, month, monthLogs) => {
         setIsExporting(month);
@@ -824,8 +837,14 @@
                 ประวัติการชาร์จของคุณ
               </h2>
 
-              {Object.keys(groupedLogs).length === 0 ? (
-                <p className="text-center text-sm text-slate-400 py-6 bg-white rounded-xl border border-slate-200">ยังไม่มีประวัติการชาร์จ</p>
+              {isLoadingLogs ? (
+                <p className="text-center text-sm text-slate-500 py-6 bg-white rounded-xl border border-slate-200">
+                  กำลังโหลดประวัติการชาร์จ...
+                </p>
+              ) : Object.keys(groupedLogs).length === 0 ? (
+                <p className="text-center text-sm text-slate-400 py-6 bg-white rounded-xl border border-slate-200">
+                  ยังไม่มีประวัติการชาร์จ
+                </p>
               ) : (
                 <div className="space-y-4">
                   {Object.entries(groupedLogs).map(([plate, months]) => (
@@ -856,7 +875,13 @@
                             <div className="divide-y divide-slate-100">
                               {monthLogs.sort((a,b) => b.date.localeCompare(a.date)).map(log => (
                                 <div key={log.id} className="p-3 px-4 flex gap-3 items-center hover:bg-slate-50">
-                                  <img src={log.photoPreview} alt="dash" className="w-12 h-12 rounded object-cover border border-slate-200" />
+                                  {log.photoPreview ? (
+                                    <img src={log.photoPreview} alt="dash" className="w-12 h-12 rounded object-cover border border-slate-200" />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                      <Zap className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                  )}
                                   <div className="flex-1">
                                     <div className="flex justify-between">
                                       <span className="text-xs text-slate-500">{log.date}</span>
